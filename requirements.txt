@@ -1,0 +1,5 @@
+PyQt6>=6.4.0
+moviepy>=1.0.3
+pydub>=0.25.1
+pyinstaller>=5.0
+ffmpeg-python>=0.2.0
