@@ -22,6 +22,9 @@ class Config:
     # 静音阈值（dBFS）- 低于此值视为静音
     silence_threshold_db: int = -40
 
+    # 长静音阈值（秒）- 超过此时长的静音会被单独导出
+    long_silence_threshold: int = 300  # 5分钟
+
     # 输出模式: "new" 或 "overwrite"
     output_mode: str = "new"
 

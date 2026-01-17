@@ -1,6 +1,7 @@
 # 视频智能分割器 Video Splitter
 
 <p align="center">
+  <img src="https://img.shields.io/badge/Version-1.1.0-brightgreen.svg" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/PyQt6-6.4+-green.svg" alt="PyQt6">
   <img src="https://img.shields.io/badge/FFmpeg-required-orange.svg" alt="FFmpeg">
@@ -41,6 +42,26 @@
 | 目标片段时长 | 30 分钟 | 每段视频的目标时长 |
 | 搜索范围 | 10 分钟 | 在目标时间点前后搜索静音的范围 |
 | 最小静音时长 | 1 秒 | 被识别为静音的最小持续时间 |
+| 长静音阈值 | 5 分钟 | 超过此时长的静音会单独导出为空白片段 |
+
+### 长静音智能处理 (v1.1.0 新增)
+
+针对视频中存在大段空白/静音的场景（如直播休息、课间休息等）：
+
+- **长静音（≥ 阈值）**：单独导出，文件名标记为 `-空白`
+- **短静音（< 阈值）**：合并到上一段内容中
+
+**示例：** 3小时视频，含60分钟连续静音 + 7分钟静音
+
+```
+原逻辑输出：                    新逻辑输出：
+├── video-1.mp4 (30分钟)       ├── video-1.mp4 (30分钟-内容)
+├── video-2.mp4 (30分钟-无声)  ├── video-2-空白.mp4 (60分钟-无声) ← 合并
+├── video-3.mp4 (30分钟-无声)  ├── video-3.mp4 (~23分钟-内容)
+├── video-4.mp4 (30分钟)       ├── video-4.mp4 (~22分钟-内容)
+├── video-5.mp4 (30分钟-混合)  ├── video-5-空白.mp4 (7分钟-无声) ← 提取
+└── video-6.mp4 (30分钟)       └── video-6.mp4 (38分钟-内容)
+```
 
 ### 设置保存
 - 一键保存当前设置

@@ -43,6 +43,29 @@ class VideoInfo:
         return os.path.splitext(self.filename)[1]
 
 
+@dataclass
+class SegmentInfo:
+    """分割片段信息"""
+    start: float
+    end: float
+    is_blank: bool  # 是否为空白片段
+    index: int  # 片段序号
+
+    @property
+    def duration(self) -> float:
+        return self.end - self.start
+
+    @property
+    def duration_str(self) -> str:
+        """格式化的时长字符串 HH:MM:SS"""
+        hours = int(self.duration // 3600)
+        minutes = int((self.duration % 3600) // 60)
+        seconds = int(self.duration % 60)
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+        return f"{minutes:02d}:{seconds:02d}"
+
+
 class VideoSplitter:
     """视频分割器"""
 
@@ -51,7 +74,8 @@ class VideoSplitter:
         target_duration_seconds: int = 1800,
         search_range_seconds: int = 60,
         silence_threshold_db: int = -40,
-        min_silence_duration: float = 0.5
+        min_silence_duration: float = 0.5,
+        long_silence_threshold: int = 300
     ):
         """
         初始化视频分割器
@@ -61,9 +85,11 @@ class VideoSplitter:
             search_range_seconds: 搜索静音的范围（秒）
             silence_threshold_db: 静音阈值（dBFS）
             min_silence_duration: 最小静音持续时间（秒）
+            long_silence_threshold: 长静音阈值（秒），超过此时长单独导出
         """
         self.target_duration = target_duration_seconds
         self.search_range = search_range_seconds
+        self.long_silence_threshold = long_silence_threshold
         self.audio_analyzer = AudioAnalyzer(
             silence_threshold_db=silence_threshold_db,
             min_silence_duration=min_silence_duration
@@ -162,7 +188,7 @@ class VideoSplitter:
         video_path: str,
         output_dir: str,
         progress_callback: Optional[Callable[[str, float], None]] = None
-    ) -> List[str]:
+    ) -> List[Tuple[str, bool]]:
         """
         分割视频
 
@@ -172,7 +198,7 @@ class VideoSplitter:
             progress_callback: 进度回调函数 (message, progress)
 
         Returns:
-            输出文件路径列表
+            输出文件信息列表 [(文件路径, 是否为空白片段), ...]
         """
         # 获取视频信息
         video_info = self.get_video_info(video_path)
@@ -180,42 +206,39 @@ class VideoSplitter:
         if not self.needs_splitting(video_info):
             if progress_callback:
                 progress_callback("视频时长不足，无需分割", 1.0)
-            return [video_path]
+            return [(video_path, False)]
 
-        # 计算分割点
+        # 计算分割点（使用长静音检测）
         if progress_callback:
             progress_callback("正在分析音频，寻找静音分割点...", 0.1)
 
-        split_points = self.audio_analyzer.calculate_split_points(
+        split_points, segment_info = self.audio_analyzer.calculate_split_points_with_long_silence(
             video_path,
             target_segment_duration=self.target_duration,
             search_range=self.search_range,
+            long_silence_threshold=self.long_silence_threshold,
             progress_callback=lambda msg, p: progress_callback(msg, 0.1 + p * 0.2) if progress_callback else None
         )
-
-        # 构建分割时间段
-        segments = []
-        start = 0.0
-        for i, point in enumerate(split_points):
-            segments.append((start, point))
-            start = point
-        segments.append((start, video_info.duration))
 
         # 确保输出目录存在
         os.makedirs(output_dir, exist_ok=True)
 
         # 分割视频
         output_files = []
-        for i, (start_time, end_time) in enumerate(segments):
+        for i, (start_time, end_time, is_blank) in enumerate(segment_info):
             if progress_callback:
-                segment_progress = (i / len(segments))
+                segment_progress = (i / len(segment_info))
+                status = "（空白）" if is_blank else ""
                 progress_callback(
-                    f"正在分割第 {i + 1}/{len(segments)} 段...",
+                    f"正在分割第 {i + 1}/{len(segment_info)} 段{status}...",
                     0.3 + segment_progress * 0.7
                 )
 
             # 生成输出文件名
-            output_filename = f"{video_info.name_without_ext}-{i + 1}{video_info.extension}"
+            if is_blank:
+                output_filename = f"{video_info.name_without_ext}-{i + 1}-空白{video_info.extension}"
+            else:
+                output_filename = f"{video_info.name_without_ext}-{i + 1}{video_info.extension}"
             output_path = os.path.join(output_dir, output_filename)
 
             # 执行分割
@@ -226,7 +249,7 @@ class VideoSplitter:
                 end_time,
                 video_info
             )
-            output_files.append(output_path)
+            output_files.append((output_path, is_blank))
 
         if progress_callback:
             progress_callback("分割完成", 1.0)
@@ -289,7 +312,7 @@ class VideoSplitter:
             ]
             subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-    def get_split_preview(self, video_info: VideoInfo) -> List[Tuple[str, str]]:
+    def get_split_preview(self, video_info: VideoInfo) -> List[Tuple[str, str, bool]]:
         """
         获取分割预览信息
 
@@ -297,10 +320,10 @@ class VideoSplitter:
             video_info: 视频信息
 
         Returns:
-            [(片段名, 预计时长字符串), ...]
+            [(片段名, 预计时长字符串, 是否为空白), ...]
         """
         if not self.needs_splitting(video_info):
-            return [(video_info.filename, video_info.duration_str)]
+            return [(video_info.filename, video_info.duration_str, False)]
 
         num_segments = self.calculate_segments(video_info)
         segment_duration = video_info.duration / num_segments
@@ -314,7 +337,7 @@ class VideoSplitter:
                 duration_str = self._format_duration(remaining)
             else:
                 duration_str = self._format_duration(segment_duration)
-            preview.append((name, f"~{duration_str}"))
+            preview.append((name, f"~{duration_str}", False))
 
         return preview
 

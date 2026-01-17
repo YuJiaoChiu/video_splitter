@@ -253,14 +253,38 @@ class MainWindow(QMainWindow):
         silence_layout.addWidget(self.silence_spin)
         settings_layout.addLayout(silence_layout)
 
+        settings_layout.addStretch()
+        split_card.content_layout.addLayout(settings_layout)
+
+        # 第二行设置：长静音阈值
+        settings_layout2 = QHBoxLayout()
+        settings_layout2.setSpacing(30)
+
+        # 长静音阈值
+        long_silence_layout = QHBoxLayout()
+        long_silence_layout.setSpacing(8)
+        long_silence_layout.addWidget(QLabel("长静音阈值:"))
+        self.long_silence_spin = QSpinBox()
+        self.long_silence_spin.setRange(60, 3600)
+        self.long_silence_spin.setValue(self.config.long_silence_threshold)
+        self.long_silence_spin.setSuffix(" 秒")
+        self.long_silence_spin.setFixedWidth(100)
+        long_silence_layout.addWidget(self.long_silence_spin)
+        settings_layout2.addLayout(long_silence_layout)
+
+        # 提示说明
+        hint_label = QLabel("（超过此时长的静音会单独导出为空白片段）")
+        hint_label.setStyleSheet(f"color: {Styles.GRAY_500}; font-size: 12px;")
+        settings_layout2.addWidget(hint_label)
+
         # 保存设置按钮
         self.save_settings_btn = QPushButton("保存设置")
         self.save_settings_btn.setFixedWidth(100)
         self.save_settings_btn.setFixedHeight(36)
-        settings_layout.addWidget(self.save_settings_btn)
+        settings_layout2.addWidget(self.save_settings_btn)
 
-        settings_layout.addStretch()
-        split_card.content_layout.addLayout(settings_layout)
+        settings_layout2.addStretch()
+        split_card.content_layout.addLayout(settings_layout2)
 
         main_layout.addWidget(split_card)
 
@@ -319,6 +343,7 @@ class MainWindow(QMainWindow):
         self.duration_spin.valueChanged.connect(self._update_splitter)
         self.search_spin.valueChanged.connect(self._update_splitter)
         self.silence_spin.valueChanged.connect(self._update_splitter)
+        self.long_silence_spin.valueChanged.connect(self._update_splitter)
 
     def _update_splitter(self):
         """更新分割器配置"""
@@ -326,7 +351,8 @@ class MainWindow(QMainWindow):
             target_duration_seconds=self.duration_spin.value() * 60,
             search_range_seconds=self.search_spin.value(),
             silence_threshold_db=self.config.silence_threshold_db,
-            min_silence_duration=self.silence_spin.value()
+            min_silence_duration=self.silence_spin.value(),
+            long_silence_threshold=self.long_silence_spin.value()
         )
         # 更新文件列表显示
         self._refresh_file_list()
@@ -341,6 +367,7 @@ class MainWindow(QMainWindow):
         self.config.target_duration_minutes = self.duration_spin.value()
         self.config.search_range_seconds = self.search_spin.value()
         self.config.min_silence_duration = self.silence_spin.value()
+        self.config.long_silence_threshold = self.long_silence_spin.value()
         self.config.save()
         QMessageBox.information(self, "保存成功", "设置已保存，下次启动将自动加载。")
 
@@ -462,6 +489,7 @@ class MainWindow(QMainWindow):
         self.config.target_duration_minutes = self.duration_spin.value()
         self.config.search_range_seconds = self.search_spin.value()
         self.config.min_silence_duration = self.silence_spin.value()
+        self.config.long_silence_threshold = self.long_silence_spin.value()
         self.config.save()
 
         # 禁用UI
