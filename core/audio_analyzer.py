@@ -120,7 +120,7 @@ class AudioAnalyzer:
                 text=True
             )
             # silencedetect 输出在 stderr
-            output = result.stderr
+            output = result.stderr or ""
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"音频分析失败: {e}")
 
