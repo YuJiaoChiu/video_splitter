@@ -96,8 +96,7 @@ class FileListWidget(QListWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setMinimumHeight(200)
-        self.setMaximumHeight(300)
+        self.setMinimumHeight(120)
         self.setSpacing(2)
         # 确保滚动条始终可见
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -115,7 +114,7 @@ class FileListWidget(QListWidget):
         widget = VideoItemWidget(filename, duration, status, needs_split, segments)
         # 设置固定的行高，确保显示完整
         from PyQt6.QtCore import QSize
-        item.setSizeHint(QSize(0, 80))
+        item.setSizeHint(QSize(0, 60))
         self.addItem(item)
         self.setItemWidget(item, widget)
         return item
@@ -152,11 +151,11 @@ class VideoItemWidget(QWidget):
         self.set_status(status)
 
     def _setup_ui(self):
-        self.setFixedHeight(70)
+        self.setFixedHeight(56)
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(15, 10, 15, 10)
-        layout.setSpacing(15)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(10)
 
         # 图标
         icon_label = QLabel("🎬" if self.needs_split else "📄")
@@ -166,10 +165,10 @@ class VideoItemWidget(QWidget):
 
         # 文件信息
         info_layout = QVBoxLayout()
-        info_layout.setSpacing(6)
+        info_layout.setSpacing(2)
 
         self.name_label = QLabel(self.filename)
-        self.name_label.setStyleSheet(f"font-weight: 500; font-size: 15px; color: {Styles.GRAY_800};")
+        self.name_label.setStyleSheet(f"font-weight: 500; font-size: 13px; color: {Styles.GRAY_800};")
 
         detail_text = f"{self.duration}"
         if self.needs_split:

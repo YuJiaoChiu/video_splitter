@@ -8,7 +8,8 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QLineEdit, QSpinBox, QDoubleSpinBox,
     QRadioButton, QButtonGroup, QFileDialog, QMessageBox,
-    QSizePolicy, QSpacerItem, QApplication
+    QSizePolicy, QSpacerItem, QApplication, QScrollArea,
+    QGroupBox, QGridLayout
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
@@ -17,7 +18,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from ui.styles import Styles
-from ui.widgets import DropZone, FileListWidget, ProgressCard, SettingsCard
+from ui.widgets import DropZone, FileListWidget, ProgressCard
 from core.video_splitter import VideoSplitter, VideoInfo
 from core.file_manager import FileManager, OutputMode, VideoFile
 from utils.config import Config
@@ -146,8 +147,8 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         """设置UI"""
         self.setWindowTitle("视频智能分割器")
-        self.setMinimumSize(900, 1200)
-        self.resize(950, 1250)
+        self.setMinimumSize(700, 600)
+        self.resize(800, 700)
 
         # 设置样式
         self.setStyleSheet(Styles.get_main_stylesheet())
@@ -158,17 +159,17 @@ class MainWindow(QMainWindow):
 
         # 主布局
         main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(24, 24, 24, 24)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(16, 16, 16, 16)
+        main_layout.setSpacing(12)
 
-        # 标题
+        # 标题行
         title_layout = QHBoxLayout()
         title_label = QLabel("视频智能分割器")
         title_label.setProperty("class", "title")
         subtitle_label = QLabel("根据音频静音自动分割视频")
         subtitle_label.setProperty("class", "subtitle")
         title_layout.addWidget(title_label)
-        title_layout.addSpacing(16)
+        title_layout.addSpacing(12)
         title_layout.addWidget(subtitle_label)
         title_layout.addStretch()
         main_layout.addLayout(title_layout)
@@ -177,154 +178,123 @@ class MainWindow(QMainWindow):
         self.drop_zone = DropZone()
         main_layout.addWidget(self.drop_zone)
 
-        # 输出设置卡片
-        output_card = SettingsCard("输出设置")
+        # ========== 设置区域（使用网格布局使其更紧凑）==========
+        settings_group = QGroupBox("设置")
+        settings_layout = QGridLayout(settings_group)
+        settings_layout.setSpacing(10)
+        settings_layout.setContentsMargins(12, 16, 12, 12)
 
-        # 输出模式
-        mode_layout = QHBoxLayout()
-        mode_layout.setSpacing(30)
+        # 第一行：输出模式
         self.mode_group = QButtonGroup(self)
         self.new_mode_radio = QRadioButton("重新生成到新目录")
         self.overwrite_mode_radio = QRadioButton("覆盖源文件")
         self.mode_group.addButton(self.new_mode_radio, 0)
         self.mode_group.addButton(self.overwrite_mode_radio, 1)
         self.new_mode_radio.setChecked(True)
-        mode_layout.addWidget(self.new_mode_radio)
-        mode_layout.addWidget(self.overwrite_mode_radio)
-        mode_layout.addStretch()
-        output_card.content_layout.addLayout(mode_layout)
 
-        # 输出目录
-        dir_layout = QHBoxLayout()
-        dir_layout.setSpacing(12)
-        dir_label = QLabel("输出目录:")
-        dir_label.setFixedWidth(80)
+        settings_layout.addWidget(QLabel("输出模式:"), 0, 0)
+        mode_widget = QWidget()
+        mode_hlayout = QHBoxLayout(mode_widget)
+        mode_hlayout.setContentsMargins(0, 0, 0, 0)
+        mode_hlayout.setSpacing(20)
+        mode_hlayout.addWidget(self.new_mode_radio)
+        mode_hlayout.addWidget(self.overwrite_mode_radio)
+        mode_hlayout.addStretch()
+        settings_layout.addWidget(mode_widget, 0, 1, 1, 3)
+
+        # 第二行：输出目录
+        settings_layout.addWidget(QLabel("输出目录:"), 1, 0)
         self.output_dir_edit = QLineEdit()
         self.output_dir_edit.setPlaceholderText("选择输出目录...")
+        settings_layout.addWidget(self.output_dir_edit, 1, 1, 1, 2)
         self.browse_btn = QPushButton("选择...")
-        self.browse_btn.setFixedWidth(90)
-        dir_layout.addWidget(dir_label)
-        dir_layout.addWidget(self.output_dir_edit, 1)
-        dir_layout.addWidget(self.browse_btn)
-        output_card.content_layout.addLayout(dir_layout)
+        self.browse_btn.setFixedWidth(70)
+        settings_layout.addWidget(self.browse_btn, 1, 3)
 
-        main_layout.addWidget(output_card)
-
-        # 分割设置卡片
-        split_card = SettingsCard("分割设置")
-
-        settings_layout = QHBoxLayout()
-        settings_layout.setSpacing(30)
-
-        # 目标片段时长
-        duration_layout = QHBoxLayout()
-        duration_layout.setSpacing(8)
-        duration_layout.addWidget(QLabel("目标片段时长:"))
+        # 第三行：分割参数
+        settings_layout.addWidget(QLabel("目标片段:"), 2, 0)
         self.duration_spin = QSpinBox()
         self.duration_spin.setRange(5, 120)
         self.duration_spin.setValue(self.config.target_duration_minutes)
         self.duration_spin.setSuffix(" 分钟")
-        self.duration_spin.setFixedWidth(110)
-        duration_layout.addWidget(self.duration_spin)
-        settings_layout.addLayout(duration_layout)
+        self.duration_spin.setFixedWidth(90)
+        settings_layout.addWidget(self.duration_spin, 2, 1)
 
-        # 搜索范围
-        search_layout = QHBoxLayout()
-        search_layout.setSpacing(8)
-        search_layout.addWidget(QLabel("搜索范围:"))
+        settings_layout.addWidget(QLabel("搜索范围:"), 2, 2)
         self.search_spin = QSpinBox()
         self.search_spin.setRange(60, 1200)
         self.search_spin.setValue(self.config.search_range_seconds)
         self.search_spin.setSuffix(" 秒")
-        self.search_spin.setFixedWidth(100)
-        search_layout.addWidget(self.search_spin)
-        settings_layout.addLayout(search_layout)
+        self.search_spin.setFixedWidth(90)
+        settings_layout.addWidget(self.search_spin, 2, 3)
 
-        # 最小静音时长
-        silence_layout = QHBoxLayout()
-        silence_layout.setSpacing(8)
-        silence_layout.addWidget(QLabel("最小静音时长:"))
+        # 第四行：静音参数
+        settings_layout.addWidget(QLabel("最小静音:"), 3, 0)
         self.silence_spin = QDoubleSpinBox()
         self.silence_spin.setRange(0.1, 5.0)
         self.silence_spin.setValue(self.config.min_silence_duration)
         self.silence_spin.setSuffix(" 秒")
         self.silence_spin.setSingleStep(0.1)
-        self.silence_spin.setFixedWidth(100)
-        silence_layout.addWidget(self.silence_spin)
-        settings_layout.addLayout(silence_layout)
+        self.silence_spin.setFixedWidth(90)
+        settings_layout.addWidget(self.silence_spin, 3, 1)
 
-        settings_layout.addStretch()
-        split_card.content_layout.addLayout(settings_layout)
-
-        # 第二行设置：长静音阈值
-        settings_layout2 = QHBoxLayout()
-        settings_layout2.setSpacing(30)
-
-        # 长静音阈值
-        long_silence_layout = QHBoxLayout()
-        long_silence_layout.setSpacing(8)
-        long_silence_layout.addWidget(QLabel("长静音阈值:"))
+        settings_layout.addWidget(QLabel("长静音阈值:"), 3, 2)
         self.long_silence_spin = QSpinBox()
         self.long_silence_spin.setRange(60, 3600)
         self.long_silence_spin.setValue(self.config.long_silence_threshold)
         self.long_silence_spin.setSuffix(" 秒")
-        self.long_silence_spin.setFixedWidth(100)
-        long_silence_layout.addWidget(self.long_silence_spin)
-        settings_layout2.addLayout(long_silence_layout)
+        self.long_silence_spin.setFixedWidth(90)
+        settings_layout.addWidget(self.long_silence_spin, 3, 3)
 
-        # 提示说明
-        hint_label = QLabel("（超过此时长的静音会单独导出为空白片段）")
-        hint_label.setStyleSheet(f"color: {Styles.GRAY_500}; font-size: 12px;")
-        settings_layout2.addWidget(hint_label)
+        # 设置列拉伸
+        settings_layout.setColumnStretch(1, 1)
+        settings_layout.setColumnStretch(3, 1)
 
-        # 保存设置按钮
-        self.save_settings_btn = QPushButton("保存设置")
-        self.save_settings_btn.setFixedWidth(100)
-        self.save_settings_btn.setFixedHeight(36)
-        settings_layout2.addWidget(self.save_settings_btn)
+        main_layout.addWidget(settings_group)
 
-        settings_layout2.addStretch()
-        split_card.content_layout.addLayout(settings_layout2)
-
-        main_layout.addWidget(split_card)
-
-        # 文件列表
-        list_label = QLabel("待处理文件列表")
-        list_label.setStyleSheet(f"font-weight: bold; color: {Styles.GRAY_700};")
-        main_layout.addWidget(list_label)
+        # ========== 文件列表 ==========
+        file_group = QGroupBox("待处理文件")
+        file_layout = QVBoxLayout(file_group)
+        file_layout.setContentsMargins(8, 12, 8, 8)
 
         self.file_list = FileListWidget()
-        main_layout.addWidget(self.file_list, 1)
+        file_layout.addWidget(self.file_list)
 
-        # 进度卡片
+        main_layout.addWidget(file_group, 1)  # 使文件列表可扩展
+
+        # ========== 进度区域 ==========
         self.progress_card = ProgressCard()
         main_layout.addWidget(self.progress_card)
 
-        # 按钮区域
+        # ========== 按钮区域 ==========
         btn_layout = QHBoxLayout()
-        btn_layout.setSpacing(16)
+        btn_layout.setSpacing(12)
 
-        self.start_btn = QPushButton("开始处理")
-        self.start_btn.setProperty("class", "primary")
-        self.start_btn.setFixedHeight(44)
-        self.start_btn.setFixedWidth(120)
-        self.start_btn.setEnabled(False)
+        self.save_settings_btn = QPushButton("保存设置")
+        self.save_settings_btn.setFixedHeight(36)
+        self.save_settings_btn.setFixedWidth(90)
+
+        self.clear_btn = QPushButton("清空列表")
+        self.clear_btn.setFixedHeight(36)
+        self.clear_btn.setFixedWidth(90)
 
         self.stop_btn = QPushButton("停止")
         self.stop_btn.setProperty("class", "danger")
-        self.stop_btn.setFixedHeight(44)
-        self.stop_btn.setFixedWidth(100)
+        self.stop_btn.setFixedHeight(36)
+        self.stop_btn.setFixedWidth(80)
         self.stop_btn.setEnabled(False)
 
-        self.clear_btn = QPushButton("清空列表")
-        self.clear_btn.setFixedHeight(44)
-        self.clear_btn.setFixedWidth(100)
+        self.start_btn = QPushButton("开始处理")
+        self.start_btn.setProperty("class", "primary")
+        self.start_btn.setFixedHeight(36)
+        self.start_btn.setFixedWidth(100)
+        self.start_btn.setEnabled(False)
 
-        btn_layout.addStretch()
-        btn_layout.addWidget(self.start_btn)
-        btn_layout.addWidget(self.stop_btn)
+        btn_layout.addWidget(self.save_settings_btn)
         btn_layout.addWidget(self.clear_btn)
         btn_layout.addStretch()
+        btn_layout.addWidget(self.stop_btn)
+        btn_layout.addWidget(self.start_btn)
 
         main_layout.addLayout(btn_layout)
 

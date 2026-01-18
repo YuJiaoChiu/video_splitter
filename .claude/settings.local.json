@@ -4,7 +4,15 @@
       "Bash(git init:*)",
       "Bash(git remote add:*)",
       "Bash(git add:*)",
-      "Bash(git rebase:*)"
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(gh run list:*)",
+      "Bash(git fetch:*)",
+      "Bash(git tag:*)"
     ]
   }
 }

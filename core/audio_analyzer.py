@@ -2,10 +2,18 @@
 音频分析模块 - 用于检测视频中的静音区域
 """
 import os
+import sys
 import tempfile
 import subprocess
 from typing import List, Tuple, Optional, Callable
 from dataclasses import dataclass
+
+
+def get_subprocess_flags():
+    """获取 subprocess 的平台特定参数，用于隐藏控制台窗口"""
+    if sys.platform == "win32":
+        return {"creationflags": subprocess.CREATE_NO_WINDOW}
+    return {}
 
 
 @dataclass
@@ -63,7 +71,8 @@ class AudioAnalyzer:
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                **get_subprocess_flags()
             )
             return float(result.stdout.strip())
         except (subprocess.CalledProcessError, ValueError) as e:
@@ -117,7 +126,8 @@ class AudioAnalyzer:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
-                text=True
+                text=True,
+                **get_subprocess_flags()
             )
             # silencedetect 输出在 stderr
             output = result.stderr or ""

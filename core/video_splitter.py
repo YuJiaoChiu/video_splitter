@@ -2,12 +2,13 @@
 视频分割模块 - 根据分割点分割视频
 """
 import os
+import sys
 import subprocess
 import re
 from typing import List, Optional, Callable, Tuple
 from dataclasses import dataclass
 
-from .audio_analyzer import AudioAnalyzer
+from .audio_analyzer import AudioAnalyzer, get_subprocess_flags
 
 
 @dataclass
@@ -116,7 +117,7 @@ class VideoSplitter:
         ]
 
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True, **get_subprocess_flags())
             import json
             data = json.loads(result.stdout)
 
@@ -140,7 +141,7 @@ class VideoSplitter:
                 "-of", "default=noprint_wrappers=1:nokey=1",
                 video_path
             ]
-            audio_result = subprocess.run(audio_cmd, capture_output=True, text=True)
+            audio_result = subprocess.run(audio_cmd, capture_output=True, text=True, **get_subprocess_flags())
             audio_codec = audio_result.stdout.strip() or "aac"
 
             return VideoInfo(
@@ -295,7 +296,8 @@ class VideoSplitter:
                 cmd,
                 capture_output=True,
                 text=True,
-                check=True
+                check=True,
+                **get_subprocess_flags()
             )
         except subprocess.CalledProcessError as e:
             # 如果 stream copy 失败，尝试重新编码
@@ -310,7 +312,7 @@ class VideoSplitter:
                 "-c:a", video_info.audio_codec,
                 output_path
             ]
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            subprocess.run(cmd, capture_output=True, text=True, check=True, **get_subprocess_flags())
 
     def get_split_preview(self, video_info: VideoInfo) -> List[Tuple[str, str, bool]]:
         """
